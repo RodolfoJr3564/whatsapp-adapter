@@ -1,0 +1,59 @@
+name: whatsapp-adapter
+services:
+  app:
+    container_name: whatsapp-adapter
+    environment:
+      - MONGO_HOST=mongodb
+      - MINIO_HOST=minio
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - ${APP_PORT}:${APP_PORT}
+    env_file:
+      - .env
+    volumes:
+      - ./auth_info_baileys:/app/auth_info_baileys
+
+  mongodb:
+    image: mongo
+    restart: always
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - ${MONGO_PORT}:${MONGO_PORT}
+    env_file:
+      - .env
+    volumes:
+      - mongo-data:/data/db
+
+  minio:
+    image: minio/minio
+    container_name: whatsapp-adapter-minio
+    restart: always
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_ADMIN_PORT}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    env_file:
+      - .env
+
+volumes:
+  minio_data:
+  temp:
+    driver: local
+  mongo-data:
