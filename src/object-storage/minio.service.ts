@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common"
 import { Client } from "minio"
 import { ConfigService } from "@nestjs/config"
 import { AppConfig } from "config/configurations.interface"
+import { mkdirSync, createWriteStream } from "fs"
+import * as path from "path"
 
 @Injectable()
 export class MinioService {
@@ -63,6 +65,33 @@ export class MinioService {
       return objectName
     } catch (error) {
       this.logger.error("Erro ao enviar arquivo para o MinIO:", error)
+      throw error
+    }
+  }
+
+  async downloadFile(
+    bucketName: string,
+    objectName: string,
+    localPath: string,
+  ): Promise<string> {
+    try {
+      mkdirSync(path.dirname(localPath), { recursive: true })
+
+      const stream = await this.minioClient.getObject(bucketName, objectName)
+
+      const writeStream = createWriteStream(localPath)
+
+      await new Promise<void>((resolve, reject) => {
+        stream.pipe(writeStream).on("finish", resolve).on("error", reject)
+      })
+
+      console.log(
+        `Arquivo "${objectName}" baixado com sucesso em: ${localPath}.`,
+      )
+
+      return localPath
+    } catch (error) {
+      console.error("Erro ao baixar arquivo do MinIO:", error)
       throw error
     }
   }
