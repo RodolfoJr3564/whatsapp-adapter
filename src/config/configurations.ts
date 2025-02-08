@@ -5,18 +5,6 @@ export default () =>
     env: process.env.NODE_ENV!,
     port: parseInt(process.env.APP_PORT!),
 
-    database: {
-      host: process.env.MONGO_HOST!,
-      port: parseInt(process.env.MONGO_PORT!, 10),
-      username: process.env.MONGO_INITDB_ROOT_USERNAME!,
-      password: process.env.MONGO_INITDB_ROOT_PASSWORD!,
-      name: process.env.MONGO_INITDB_DATABASE!,
-
-      get uri() {
-        return `mongodb://${this.username}:${this.password}@${this.host}:${this.port}`
-      },
-    },
-
     storage: {
       host: process.env.MINIO_HOST!,
       port: parseInt(process.env.MINIO_PORT!, 10),

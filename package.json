@@ -23,12 +23,10 @@
     "@nestjs/common": "^11.0.8",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.8",
-    "@nestjs/mongoose": "^11.0.1",
     "@nestjs/platform-express": "^11.0.8",
     "@whiskeysockets/baileys": "^6.7.12",
     "link-preview-js": "^3.0.13",
     "minio": "^8.0.4",
-    "mongoose": "^8.10.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

@@ -16,21 +16,6 @@ services:
     volumes:
       - ./auth_info_baileys:/app/auth_info_baileys
 
-  mongodb:
-    image: mongo
-    restart: always
-    container_name: mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
-    ports:
-      - ${MONGO_PORT}:${MONGO_PORT}
-    env_file:
-      - .env
-    volumes:
-      - mongo-data:/data/db
-
   minio:
     image: minio/minio
     container_name: whatsapp-adapter-minio
@@ -56,4 +41,3 @@ volumes:
   minio_data:
   temp:
     driver: local
-  mongo-data:

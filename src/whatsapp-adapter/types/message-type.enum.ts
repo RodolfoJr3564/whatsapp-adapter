@@ -1,5 +1,4 @@
 export enum MessageTypeEnum {
-  Conversation = "conversation",
   Image = "imageMessage",
   Video = "videoMessage",
   Audio = "audioMessage",
@@ -10,5 +9,6 @@ export enum MessageTypeEnum {
   Reaction = "reactionMessage",
   ExtendedText = "extendedTextMessage",
   Protocol_Message = "protocolMessage",
+  Conversation = "conversation",
   Unknown = "unknown",
 }
