@@ -54,11 +54,10 @@ export class WhatsappMessageReceiverService {
       try {
         const createdMessage = await this.createMessage(message)
         await this.messageSenderService.setMessagesRead([message.key])
-        this.rabbitService.emit("whatsapp.received.message", {
-          contact: createdMessage.contact,
-          content: createdMessage.content,
-          type: createdMessage.type,
-        })
+        this.rabbitService.emit(
+          "whatsapp.received.message",
+          createdMessage.serialize(),
+        )
       } catch (error) {
         let response
         if (

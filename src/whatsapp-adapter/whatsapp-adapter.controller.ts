@@ -2,7 +2,7 @@ import { Body, Controller, Post } from "@nestjs/common"
 import { MessagePattern, Payload } from "@nestjs/microservices"
 import { RabbitmqService } from "queue/rabbit.service"
 import { WhatsappMessageSenderService } from "./whatsapp-message-sender.service"
-import { IMessage } from "./types/message"
+import { MessageDTO } from "./types/message"
 
 @Controller("message")
 export class WhatsappAdapterController {
@@ -17,7 +17,7 @@ export class WhatsappAdapterController {
   }
 
   @MessagePattern("whatsapp.received.message")
-  processMessage(@Payload() data: IMessage) {
+  processMessage(@Payload() data: MessageDTO) {
     return this.rabbitService.emit("whatsapp.send.message", data)
   }
 
@@ -27,7 +27,8 @@ export class WhatsappAdapterController {
   }
 
   @MessagePattern("whatsapp.send.message")
-  processSendMessage(@Payload() data: IMessage) {
+  processSendMessage(@Payload() data: MessageDTO) {
+    console.log("Sending message", data)
     return this.messageSenderService.sendMessage(
       data?.contact.id,
       data?.content,

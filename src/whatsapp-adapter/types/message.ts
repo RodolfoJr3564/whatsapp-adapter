@@ -48,6 +48,7 @@ export abstract class MessageDTO implements IMessage {
   }
 
   abstract get content(): string
+  abstract serialize(): object
 }
 
 export class TextMessage extends MessageDTO {
@@ -60,11 +61,34 @@ export class TextMessage extends MessageDTO {
       throw new Error("Unsupported text message type")
     }
   }
+
+  serialize() {
+    return {
+      type: this.type,
+      content: this.content,
+      contact: this.contact,
+      target: this.target,
+    }
+  }
 }
 
 export abstract class MediaMessageDTO extends MessageDTO {
   get fileName() {
     return `${this.target?.key?.id}-${this.target?.key?.remoteJid}`
+  }
+  abstract get mimeType(): string
+  abstract get filePath(): string
+
+  serialize() {
+    return {
+      type: this.type,
+      content: this.content,
+      contact: this.contact,
+      target: this.target,
+      mimeType: this.mimeType,
+      filePath: this.filePath,
+      fileName: this.fileName,
+    }
   }
 }
 
