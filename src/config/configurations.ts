@@ -17,4 +17,16 @@ export default () =>
         return `http${this.useSSL ? "s" : ""}://${this.host}:${this.port}`
       },
     },
+
+    rabbitmq: {
+      host: process.env.RABBITMQ_HOST!,
+      port: parseInt(process.env.RABBITMQ_PORT!, 10),
+      user: process.env.RABBITMQ_USER!,
+      password: process.env.RABBITMQ_PASSWORD!,
+      queue: process.env.RABBITMQ_QUEUE!,
+
+      get uri() {
+        return `amqp://${this.user}:${this.password}@${this.host}:${this.port}`
+      },
+    },
   }) as AppConfig

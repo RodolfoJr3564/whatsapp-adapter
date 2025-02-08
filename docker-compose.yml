@@ -5,6 +5,7 @@ services:
     environment:
       - MONGO_HOST=mongodb
       - MINIO_HOST=minio
+      - RABBITMQ_HOST=rabbitmq
     build:
       context: .
       dockerfile: Dockerfile
@@ -36,6 +37,16 @@ services:
       retries: 3
     env_file:
       - .env
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    env_file:
+      - .env
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "15672:15672"
 
 volumes:
   minio_data:

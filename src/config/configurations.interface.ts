@@ -2,6 +2,7 @@ export interface AppConfig {
   env: string
   port: number
   storage: StorageConfig
+  rabbitmq: RabbitmqConfig
 }
 
 export interface StorageConfig {
@@ -11,5 +12,14 @@ export interface StorageConfig {
   accessKey: string
   secretKey: string
   bucketName: string
+  uri: string
+}
+
+export interface RabbitmqConfig {
+  host: string
+  port: number
+  user: string
+  password: string
+  queue: string
   uri: string
 }

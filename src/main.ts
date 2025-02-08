@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { Logger } from "@nestjs/common"
 import configurations from "config/configurations"
+import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 ;(async () => {
   const logger = new Logger("Bootstrap")
   logger.log("Iniciando aplicação NestJS...")
@@ -13,6 +14,19 @@ import configurations from "config/configurations"
         ? ["error", "warn", "log"]
         : ["error", "warn", "log", "debug", "verbose"],
   })
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [config.rabbitmq.uri],
+      queue: config.rabbitmq.queue,
+      queueOptions: {
+        durable: false,
+      },
+    },
+  })
+
+  await app.startAllMicroservices()
 
   await app.listen(config.port, () => {
     logger.log(`Application is running in ${process.env.NODE_ENV}`)

@@ -15,6 +15,7 @@ import {
   UnsupportedMessageTypeError,
   UnsupportedMessageTypeWithoutResponseError,
 } from "./types/custom-errors"
+import { RabbitmqService } from "queue/rabbit.service"
 
 @Injectable()
 export class WhatsappMessageReceiverService {
@@ -24,6 +25,7 @@ export class WhatsappMessageReceiverService {
 
   constructor(
     private readonly storage: MinioService,
+    private readonly rabbitService: RabbitmqService,
     private readonly configService: ConfigService,
     private readonly messageSenderService: WhatsappMessageSenderService,
     @Inject(forwardRef(() => WhatsappConnectService))
@@ -52,10 +54,11 @@ export class WhatsappMessageReceiverService {
       try {
         const createdMessage = await this.createMessage(message)
         await this.messageSenderService.setMessagesRead([message.key])
-        console.log(createdMessage.contact)
-        console.log(createdMessage.content)
-        console.log(createdMessage.type)
-        // TODO: this.chatHandlerService.handleChat(messages)
+        this.rabbitService.emit("whatsapp.received.message", {
+          contact: createdMessage.contact,
+          content: createdMessage.content,
+          type: createdMessage.type,
+        })
       } catch (error) {
         let response
         if (
