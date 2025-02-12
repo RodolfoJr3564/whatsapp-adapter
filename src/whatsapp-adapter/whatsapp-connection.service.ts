@@ -27,14 +27,14 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsappConnectService.name)
   private socket: WASocket | null = null
   private credentialsFilePath = resolvePath("auth_info_baileys")
+
   private retryAttempts = 0
   private maxRetries = 100
   private backoffFactor = 2000
-  private messageReceiver: WhatsappMessageReceiverService
 
-  constructor(messageReceiver: WhatsappMessageReceiverService) {
-    this.messageReceiver = messageReceiver
-  }
+  constructor(
+    private readonly messageReceiver: WhatsappMessageReceiverService,
+  ) {}
 
   async onModuleInit() {
     await this.connectToWhatsApp()
@@ -49,137 +49,116 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
       this.logger.log("Socket não encontrado. Tentando conectar...")
       await this.connectToWhatsApp()
     }
-
     return this.socket as WASocket
   }
 
-  async connectToWhatsApp(retryCount = this.maxRetries) {
+  async connectToWhatsApp() {
     try {
       const authState: AuthState = await useMultiFileAuthState(
         this.credentialsFilePath,
       )
 
-      if (!authState || !authState.state || !authState.saveCreds) {
+      if (!authState?.state || !authState?.saveCreds) {
         this.logger.error("Falha ao atualizar credenciais.")
         return this.shutdownApp()
       }
 
       const sock = makeWASocket({
-        emitOwnEvents: false, // Emite eventos próprios
-        printQRInTerminal: true, // Imprime o QR code no terminal para escaneamento
-        auth: authState.state, // Estado de autenticação para manter a sessão
-        markOnlineOnConnect: true, // Marca o cliente como online sempre que a conexão é estabelecida
-        syncFullHistory: false, // Desativa a sincronização completa do histórico de mensagens
-        fireInitQueries: false, // Não dispara automaticamente consultas iniciais para otimizar a conexão
-        connectTimeoutMs: 5000, // Tempo limite de conexão (5 segundos) para detectar problemas de conexão rapidamente
-        retryRequestDelayMs: 1000, // Tempo entre tentativas de reenvio de mensagens (1 segundo)
-        maxMsgRetryCount: 5, // Número máximo de tentativas de reenvio de mensagens
+        emitOwnEvents: false,
+        printQRInTerminal: true,
+        auth: authState.state,
+        markOnlineOnConnect: true,
+        syncFullHistory: false,
+        fireInitQueries: false,
+        connectTimeoutMs: 5000,
+        retryRequestDelayMs: 1000,
+        maxMsgRetryCount: 5,
       })
 
       this.socket = sock
-
       this.retryAttempts = 0
 
-      this.setupEventListeners(sock, authState, retryCount)
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        this.logger.error(`Erro ao conectar ao WhatsApp: ${error.message}`)
-      } else {
-        this.logger.error(`Erro ao conectar ao WhatsApp: ${String(error)}`)
-      }
-      this.handleReconnection(retryCount)
+      this.setupEventListeners(sock, authState)
+    } catch (error) {
+      this.logger.error(
+        `Erro ao conectar ao WhatsApp: ${error instanceof Error ? error.message : error}`,
+      )
+
+      this.retryOrShutdown()
     }
   }
 
-  private setupEventListeners(
-    sock: WASocket,
-    authState: AuthState,
-    retryCount: number,
-  ) {
+  private setupEventListeners(sock: WASocket, authState: AuthState) {
     sock.ev.on("creds.update", () => {
       authState
         .saveCreds()
-        .catch(error => this.logger.error("Erro ao salvar credenciais:", error))
+        .catch(err => this.logger.error("Erro ao salvar credenciais:", err))
     })
 
     sock.ev.on("connection.update", update =>
-      this.handleConnectionUpdate(update, retryCount),
+      this.handleConnectionUpdate(update),
     )
 
-    sock.ev.on("messages.upsert", message =>
-      this.messageReceiver.receive(message),
-    )
+    sock.ev.on("messages.upsert", message => {
+      this.messageReceiver.receive(message)
+    })
   }
 
-  private handleConnectionUpdate(
-    connectionStateChange: Partial<ConnectionState>,
-    retryCount: number,
-  ) {
-    this.logger.warn(
-      `Atualização de conexão: ${JSON.stringify(connectionStateChange)}`,
-    )
+  private handleConnectionUpdate(update: Partial<ConnectionState>) {
+    this.logger.warn(`Atualização de conexão: ${JSON.stringify(update)}`)
 
-    if (connectionStateChange.connection === "close") {
-      const connectionCloseError = connectionStateChange?.lastDisconnect?.error
+    const { connection, lastDisconnect, qr } = update
 
-      let connectionCloseErrorCode = DisconnectReason.connectionClosed
-      if (connectionCloseError) {
-        const errorWithCode = connectionCloseError as {
+    if (connection === "close") {
+      const error = lastDisconnect?.error
+      let errorCode = DisconnectReason.connectionClosed
+
+      if (error) {
+        const errorWithCode = error as {
           output?: { statusCode?: number }
           code?: number
         }
-        connectionCloseErrorCode =
-          errorWithCode?.output?.statusCode ||
-          errorWithCode?.code ||
-          connectionCloseErrorCode
+        errorCode =
+          errorWithCode?.output?.statusCode || errorWithCode?.code || errorCode
       }
 
-      if (connectionCloseErrorCode === DisconnectReason.loggedOut) {
+      if (errorCode === DisconnectReason.loggedOut) {
         this.logger.error("Desconectado do WhatsApp. Removendo credenciais.")
         this.deleteAuthState()
-
-        this.logger.warn("Tentando reconectar em 5 segundos...")
-        setTimeout(() => {
-          this.connectToWhatsApp(retryCount - 1)
-        }, 5000)
-      } else if (retryCount > 0) {
-        this.retryAttempts++
-        const delay = Math.min(this.backoffFactor * this.retryAttempts, 30000) // Limitar a 30 segundos
-        this.logger.warn(`Tentando reconectar em ${delay / 1000} segundos...`)
-        this.logger.error(`Tentativas restantes: ${retryCount}`)
-        setTimeout(() => {
-          this.connectToWhatsApp(retryCount - 1)
-        }, delay)
+        this.retryOrShutdown()
       } else {
-        this.logger.error(
-          "Número máximo de tentativas de reconexão atingido. Encerrando aplicação.",
-        )
-        return this.shutdownApp()
+        this.retryOrShutdown()
       }
-    } else if (connectionStateChange.connection === "open") {
+    } else if (connection === "open") {
       this.logger.log("Conexão com WhatsApp estabelecida com sucesso.")
+      this.retryAttempts = 0
     }
 
-    if (connectionStateChange.qr) {
-      this.displayQRCode(connectionStateChange.qr)
+    if (qr) {
+      this.displayQRCode(qr)
     }
   }
 
-  private handleReconnection(retryCount: number) {
-    if (retryCount > 0) {
-      this.retryAttempts++
-      const delay = Math.min(this.backoffFactor * this.retryAttempts, 30000)
-      this.logger.warn(`Tentando reconectar em ${delay / 1000} segundos...`)
-      this.logger.error(`Tentativas restantes: ${retryCount}`)
-      setTimeout(() => {
-        this.connectToWhatsApp(retryCount - 1)
-      }, delay)
-    } else {
+  private retryOrShutdown() {
+    if (this.retryAttempts >= this.maxRetries) {
       this.logger.error(
         "Número máximo de tentativas de reconexão atingido. Encerrando aplicação.",
       )
-      this.shutdownApp()
+      return this.shutdownApp()
     }
+
+    this.retryAttempts++
+    const delay = Math.min(this.backoffFactor * this.retryAttempts, 30000)
+    this.logger.warn(`Tentando reconectar em ${delay / 1000} segundos...`)
+    this.logger.warn(
+      `Tentativas restantes: ${this.maxRetries - this.retryAttempts}`,
+    )
+
+    this.closeConnection(false)
+
+    setTimeout(() => {
+      this.connectToWhatsApp()
+    }, delay)
   }
 
   private deleteAuthState() {
@@ -193,20 +172,22 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  closeConnection() {
+  closeConnection(logInfo = true) {
     if (this.socket) {
       this.clearSockListeners()
-      this.logger.warn("Fechando conexão com o WhatsApp.")
-      this.socket.ws.close()
+      if (logInfo) {
+        this.logger.warn("Fechando conexão com o WhatsApp.")
+      }
+      try {
+        this.socket.ws.close()
+      } catch (err) {
+        this.logger.error("Erro ao fechar socket:", err)
+      }
       this.clearSock()
-      this.logger.warn("Listeners removidos.")
+      if (logInfo) {
+        this.logger.warn("Listeners removidos e socket limpo.")
+      }
     }
-  }
-
-  private shutdownApp() {
-    this.logger.log("Encerrando aplicação.")
-    this.closeConnection()
-    process.exit(1)
   }
 
   clearSockListeners() {
@@ -222,10 +203,16 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
     this.socket = null
   }
 
+  private shutdownApp() {
+    this.logger.log("Encerrando aplicação.")
+    this.closeConnection()
+    process.exit(1)
+  }
+
   private displayQRCode(qr: string) {
     qrCodeToString(qr, { type: "terminal", small: true }, (err, url) => {
       if (err) {
-        this.logger.error("Falha ao gerar QR Code.")
+        this.logger.error("Falha ao gerar QR Code:", err)
         return
       }
       console.log()

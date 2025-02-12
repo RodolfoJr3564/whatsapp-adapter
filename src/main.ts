@@ -19,10 +19,12 @@ import { MicroserviceOptions, Transport } from "@nestjs/microservices"
     transport: Transport.RMQ,
     options: {
       urls: [config.rabbitmq.uri],
-      queue: config.rabbitmq.queue,
+      queue: config.rabbitmq.whatsappSendMessageQueue,
       queueOptions: {
         durable: false,
       },
+      prefetchCount: 1,
+      noAck: false,
     },
   })
 

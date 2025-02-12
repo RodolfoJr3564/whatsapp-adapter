@@ -23,7 +23,9 @@ export default () =>
       port: parseInt(process.env.RABBITMQ_PORT!, 10),
       user: process.env.RABBITMQ_USER!,
       password: process.env.RABBITMQ_PASSWORD!,
-      queue: process.env.RABBITMQ_QUEUE!,
+      whatsappSendMessageQueue: process.env.WHATSAPP_ADAPTER_SEND_MESSAGE_QUEUE,
+      whatsappReceivedMessageQueue:
+        process.env.WHATSAPP_ADAPTER_RECEIVED_MESSAGE_QUEUE,
 
       get uri() {
         return `amqp://${this.user}:${this.password}@${this.host}:${this.port}`

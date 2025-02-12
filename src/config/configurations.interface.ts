@@ -20,6 +20,7 @@ export interface RabbitmqConfig {
   port: number
   user: string
   password: string
-  queue: string
   uri: string
+  whatsappSendMessageQueue: string
+  whatsappReceivedMessageQueue: string
 }

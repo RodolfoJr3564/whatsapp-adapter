@@ -41,20 +41,8 @@ export class WhatsappMessageSenderService {
   }
 
   async sendMessage(jid: string, message: string) {
-    try {
-      const socket = await this.connectionService.getSocket()
-      if (typeof message === "string") {
-        await socket.sendMessage(jid, { text: message })
-      } else {
-        this.logger.error(
-          `Tipo de mensagem "${typeof message}" não é uma string.`,
-        )
-      }
-    } catch (error) {
-      this.logger.error(
-        `Erro ao enviar mensagem para ${jid}: ${(error as Error).message}`,
-      )
-    }
+    const socket = await this.connectionService.getSocket()
+    await socket.sendMessage(jid, { text: message })
   }
 
   async sendReactionMessage(

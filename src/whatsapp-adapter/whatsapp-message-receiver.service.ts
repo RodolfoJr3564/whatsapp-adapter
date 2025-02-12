@@ -3,7 +3,7 @@ import { WAMessage, downloadMediaMessage } from "@whiskeysockets/baileys"
 import { MinioService } from "object-storage/minio.service"
 import pino from "pino"
 import { ConfigService } from "@nestjs/config"
-import { StorageConfig } from "config/configurations.interface"
+import { RabbitmqConfig, StorageConfig } from "config/configurations.interface"
 import { WhatsappMessageSenderService } from "./whatsapp-message-sender.service"
 import { WhatsappConnectService } from "./whatsapp-connection.service"
 import {
@@ -15,17 +15,19 @@ import {
   UnsupportedMessageTypeError,
   UnsupportedMessageTypeWithoutResponseError,
 } from "./types/custom-errors"
-import { RabbitmqService } from "queue/rabbit.service"
+import { ClientProxy } from "@nestjs/microservices"
 
 @Injectable()
 export class WhatsappMessageReceiverService {
   private readonly logger = new Logger(WhatsappMessageReceiverService.name)
   private readonly pinoLogger = pino()
   private bucketName: string
+  private readonly whatsappReceivedMessageQueue: string
 
   constructor(
     private readonly storage: MinioService,
-    private readonly rabbitService: RabbitmqService,
+    @Inject("DISPATCH_RECEIVED_MESSAGE_CLIENT")
+    private readonly dispatchReceivedMessageClient: ClientProxy,
     private readonly configService: ConfigService,
     private readonly messageSenderService: WhatsappMessageSenderService,
     @Inject(forwardRef(() => WhatsappConnectService))
@@ -34,6 +36,12 @@ export class WhatsappMessageReceiverService {
     const storageConfig = this.configService.get<StorageConfig>(
       "storage",
     ) as StorageConfig
+    const rabbitmqConfig = this.configService.get<RabbitmqConfig>("rabbitmq")
+    if (!rabbitmqConfig) {
+      throw new Error("RabbitMQ configuration not found")
+    }
+    this.whatsappReceivedMessageQueue =
+      rabbitmqConfig.whatsappReceivedMessageQueue
     this.bucketName = storageConfig.bucketName
     this.messageSenderService = messageSenderService
     this.connectionService = connectionService
@@ -54,9 +62,12 @@ export class WhatsappMessageReceiverService {
       try {
         const createdMessage = await this.createMessage(message)
         await this.messageSenderService.setMessagesRead([message.key])
-        this.rabbitService.emit(
-          "whatsapp.received.message",
+        this.dispatchReceivedMessageClient.emit(
+          this.whatsappReceivedMessageQueue,
           createdMessage.serialize(),
+        )
+        this.logger.log(
+          `Mensagem enviada para: ${this.whatsappReceivedMessageQueue}`,
         )
       } catch (error) {
         let response
