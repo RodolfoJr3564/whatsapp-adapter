@@ -1,5 +1,6 @@
 import { WAMessage } from "@whiskeysockets/baileys"
 import { MessageTypeEnum } from "./message-type.enum"
+import { UnsupportedMessageTypeError } from "./custom-errors"
 
 export class ContactDTO {
   id: string
@@ -28,6 +29,7 @@ export interface IMessage {
   content: string
   target: WAMessage
   contact: ContactDTO
+  timestamp: number | Long.Long
 }
 
 export interface IMediaMessage extends IMessage {
@@ -40,11 +42,13 @@ export abstract class MessageDTO implements IMessage {
   target: WAMessage
   type: MessageTypeEnum
   contact: ContactDTO
+  timestamp: number
 
   constructor(wMessage: WAMessage, type: MessageTypeEnum) {
     this.target = wMessage
     this.type = type
     this.contact = new ContactDTO(wMessage)
+    this.timestamp = wMessage.messageTimestamp as number
   }
 
   abstract get content(): string
@@ -68,6 +72,7 @@ export class TextMessage extends MessageDTO {
       content: this.content,
       contact: this.contact,
       target: this.target,
+      timestamp: this.timestamp,
     }
   }
 }
@@ -88,6 +93,7 @@ export abstract class MediaMessageDTO extends MessageDTO {
       mimeType: this.mimeType,
       filePath: this.filePath,
       fileName: this.fileName,
+      timestamp: this.timestamp,
     }
   }
 }
@@ -233,7 +239,7 @@ export class MediaMessageFactory {
       case MessageTypeEnum.Audio:
         return new AudioMediaMessageDTO(wMessage, messageType)
       default:
-        throw new Error("Unsupported media message type")
+        throw new UnsupportedMessageTypeError("Unsupported media message type")
     }
   }
 }

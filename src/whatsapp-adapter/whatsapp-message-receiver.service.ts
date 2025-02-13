@@ -60,6 +60,7 @@ export class WhatsappMessageReceiverService {
 
     for (const message of receivedChat.messages) {
       try {
+        console.log("Mensagem recebida: ", message)
         const createdMessage = await this.createMessage(message)
         await this.messageSenderService.setMessagesRead([message.key])
         this.dispatchReceivedMessageClient.emit(
@@ -78,7 +79,7 @@ export class WhatsappMessageReceiverService {
           this.logger.error(`Erro ao processar mensagem: ${error.message}`)
           response =
             "🚫 *Desculpe, houve um erro ao processar sua última mensagem.* 😓" +
-            "\n Parece que não é possível processar este tipo de mensagem. 🤔"
+            "\n> Parece que não é possível processar este tipo de mensagem. 🤔"
         }
 
         if (message.key.remoteJid) {
@@ -90,9 +91,7 @@ export class WhatsappMessageReceiverService {
           )
         }
 
-        this.logger.error(
-          `Erro ao tratar a mensagem: ${(error as Error)?.message}`,
-        )
+        this.logger.error(error)
       }
     }
   }
