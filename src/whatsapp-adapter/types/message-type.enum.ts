@@ -5,6 +5,7 @@ export enum MessageTypeEnum {
   Document = "documentMessage",
   DocumentWithCaption = "documentWithCaptionMessage",
   Location = "locationMessage",
+  LiveLocation = "liveLocationMessage",
   Contact = "contactMessage",
   Reaction = "reactionMessage",
   ExtendedText = "extendedTextMessage",

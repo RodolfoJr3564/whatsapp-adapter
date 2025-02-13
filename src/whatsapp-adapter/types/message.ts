@@ -13,7 +13,7 @@ export class ContactDTO {
     const id = wMessage.key?.remoteJid
 
     if (!id) {
-      throw new Error("Remote JID not found")
+      throw new UnsupportedMessageTypeError("Remote JID not found")
     }
 
     this.id = id
@@ -36,6 +36,15 @@ export interface IMediaMessage extends IMessage {
   fileName: string
   filePath: string
   mimeType: string
+}
+
+export interface ILocationMessage {
+  type: MessageTypeEnum
+  target: WAMessage
+  contact: ContactDTO
+  timestamp: number | Long.Long
+  degreesLatitude: number
+  degreesLongitude: number
 }
 
 export abstract class MessageDTO implements IMessage {
@@ -73,6 +82,41 @@ export class TextMessage extends MessageDTO {
       contact: this.contact,
       target: this.target,
       timestamp: this.timestamp,
+    }
+  }
+}
+
+export class LocationMessage implements ILocationMessage {
+  type: MessageTypeEnum
+  target: WAMessage
+  contact: ContactDTO
+  timestamp: number
+  degreesLatitude: number
+  degreesLongitude: number
+
+  constructor(wMessage: WAMessage) {
+    this.target = wMessage
+    this.type = MessageTypeEnum.Location
+    this.contact = new ContactDTO(wMessage)
+    this.timestamp = wMessage.messageTimestamp as number
+    if (
+      !wMessage.message?.locationMessage?.degreesLatitude ||
+      !wMessage.message?.locationMessage?.degreesLongitude
+    ) {
+      throw new UnsupportedMessageTypeError("Location message not found")
+    }
+    this.degreesLatitude = wMessage.message?.locationMessage?.degreesLatitude
+    this.degreesLongitude = wMessage.message?.locationMessage?.degreesLongitude
+  }
+
+  serialize(): ILocationMessage {
+    return {
+      type: this.type,
+      contact: this.contact,
+      target: this.target,
+      timestamp: this.timestamp,
+      degreesLatitude: this.degreesLatitude,
+      degreesLongitude: this.degreesLongitude,
     }
   }
 }
@@ -238,6 +282,8 @@ export class MediaMessageFactory {
         return new VideoMediaMessageDTO(wMessage, messageType)
       case MessageTypeEnum.Audio:
         return new AudioMediaMessageDTO(wMessage, messageType)
+      case MessageTypeEnum.Location:
+        return new LocationMessage(wMessage)
       default:
         throw new UnsupportedMessageTypeError("Unsupported media message type")
     }
