@@ -16,13 +16,16 @@ import {
   UnsupportedMessageTypeWithoutResponseError,
 } from "./types/custom-errors"
 import { ClientProxy } from "@nestjs/microservices"
-
+import axios from "axios"
+import * as FormData from "form-data"
+import { MessageTypeEnum } from "./types/message-type.enum"
 @Injectable()
 export class WhatsappMessageReceiverService {
   private readonly logger = new Logger(WhatsappMessageReceiverService.name)
   private readonly pinoLogger = pino()
   private bucketName: string
   private readonly whatsappReceivedMessageQueue: string
+  private readonly openaiAPIKey: string
 
   constructor(
     private readonly storage: MinioService,
@@ -45,6 +48,11 @@ export class WhatsappMessageReceiverService {
     this.bucketName = storageConfig.bucketName
     this.messageSenderService = messageSenderService
     this.connectionService = connectionService
+    const openaiAPIKey = this.configService.get<string>("openaiAPIKey")
+    if (!openaiAPIKey) {
+      throw new Error("OpenAI API Key not found")
+    }
+    this.openaiAPIKey = openaiAPIKey
   }
 
   receive(receivedChat: { messages: WAMessage[] }) {
@@ -120,6 +128,9 @@ export class WhatsappMessageReceiverService {
         logger: this.pinoLogger,
       },
     )
+    if (message.type === MessageTypeEnum.Audio) {
+      message.content = await this.transcribeAudio(buffer, message.mimeType)
+    }
 
     return this.storage.uploadFile(
       message.filePath,
@@ -127,5 +138,38 @@ export class WhatsappMessageReceiverService {
       message.mimeType,
       this.bucketName,
     )
+  }
+
+  private async transcribeAudio(buffer: Buffer, mimeType: string) {
+    const url = "https://api.openai.com/v1/audio/transcriptions"
+
+    try {
+      const formData = new FormData()
+      formData.append("file", buffer, {
+        filename: "audio.mp3", // nome do arquivo
+        contentType: mimeType,
+      })
+      formData.append("model", "whisper-1")
+      formData.append("language", "pt")
+      formData.append(
+        "prompt",
+        "Transcreva o áudio. Você está obtendo um áudio de um cidadão descrevendo um incidente, que pode ser um assalto, acidente, ou outro tipo de ocorrência. Por favor, transcreva o áudio.",
+      )
+
+      const response = await axios.post(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Bearer ${this.openaiAPIKey}`,
+        },
+      })
+      console.log(response)
+      return response.data.text
+    } catch (error: any) {
+      console.error(
+        "Erro na transcrição:",
+        error.response?.data || error.message,
+      )
+      return null
+    }
   }
 }

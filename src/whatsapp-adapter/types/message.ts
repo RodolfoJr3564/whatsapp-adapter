@@ -99,14 +99,15 @@ export class LocationMessage implements ILocationMessage {
     this.type = MessageTypeEnum.Location
     this.contact = new ContactDTO(wMessage)
     this.timestamp = wMessage.messageTimestamp as number
-    if (
-      !wMessage.message?.locationMessage?.degreesLatitude ||
-      !wMessage.message?.locationMessage?.degreesLongitude
-    ) {
+
+    const message =
+      wMessage.message?.liveLocationMessage || wMessage.message?.locationMessage
+
+    if (!message?.degreesLatitude || !message?.degreesLongitude) {
       throw new UnsupportedMessageTypeError("Location message not found")
     }
-    this.degreesLatitude = wMessage.message?.locationMessage?.degreesLatitude
-    this.degreesLongitude = wMessage.message?.locationMessage?.degreesLongitude
+    this.degreesLatitude = message?.degreesLatitude
+    this.degreesLongitude = message?.degreesLongitude
   }
 
   serialize(): ILocationMessage {
@@ -234,12 +235,18 @@ export class AudioMediaMessageDTO
   extends MediaMessageDTO
   implements IMediaMessage
 {
+  private _content: string
+
   get message() {
     return this.target.message?.audioMessage
   }
 
+  set content(value: string) {
+    this._content = value
+  }
+
   get content(): string {
-    return ""
+    return this._content || ""
   }
 
   get mimeType(): string {
@@ -282,6 +289,7 @@ export class MediaMessageFactory {
         return new VideoMediaMessageDTO(wMessage, messageType)
       case MessageTypeEnum.Audio:
         return new AudioMediaMessageDTO(wMessage, messageType)
+      case MessageTypeEnum.LiveLocation:
       case MessageTypeEnum.Location:
         return new LocationMessage(wMessage)
       default:

@@ -4,7 +4,7 @@ export default () =>
   ({
     env: process.env.NODE_ENV!,
     port: parseInt(process.env.APP_PORT!),
-
+    openaiAPIKey: process.env.OPENAI_API_KEY!,
     storage: {
       host: process.env.MINIO_HOST!,
       port: parseInt(process.env.MINIO_PORT!, 10),
