@@ -1,10 +1,12 @@
-import { Controller } from "@nestjs/common"
+import { Controller, Logger } from "@nestjs/common"
 import { Ctx, MessagePattern, Payload, RmqContext } from "@nestjs/microservices"
 import { WhatsappMessageSenderService } from "./whatsapp-message-sender.service"
 import { ISendMessage } from "./types/send-message"
 
-@Controller("message")
+@Controller("whatsapp")
 export class WhatsappAdapterController {
+  private readonly logger = new Logger(WhatsappAdapterController.name)
+
   constructor(
     private readonly messageSenderService: WhatsappMessageSenderService,
   ) {}
@@ -17,11 +19,16 @@ export class WhatsappAdapterController {
     const channel = context.getChannelRef()
     const originalMsg = context.getMessage()
     try {
-      console.log("🔵 Enviando mensagem:", data)
-      await this.messageSenderService.sendMessage(data.contactId, data.content)
+      this.logger.log(`� [QUEUE] Enviando mensagem para: ${data.phoneNumber}`)
+      await this.messageSenderService.sendMessage(
+        data.phoneNumber,
+        data.content,
+      )
       channel.ack(originalMsg)
     } catch (error) {
-      console.error("❌ Erro ao processar mensagem:", error)
+      this.logger.error(
+        `❌ [QUEUE] Erro ao processar mensagem: ${(error as Error).message}`,
+      )
       channel.nack(originalMsg, false, false)
     }
   }

@@ -1,4 +1,4 @@
 export interface ISendMessage {
-  contactId: string
+  phoneNumber: string
   content: string
 }

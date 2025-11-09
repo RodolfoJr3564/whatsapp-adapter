@@ -10,6 +10,7 @@ import makeWASocket, {
   WASocket,
   AuthenticationState,
   ConnectionState,
+  Browsers,
 } from "@whiskeysockets/baileys"
 
 import { toString as qrCodeToString } from "qrcode"
@@ -64,15 +65,12 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
       }
 
       const sock = makeWASocket({
-        emitOwnEvents: false,
-        printQRInTerminal: true,
         auth: authState.state,
-        markOnlineOnConnect: true,
+        printQRInTerminal: true,
+        browser: Browsers.macOS("Desktop"),
         syncFullHistory: false,
-        fireInitQueries: false,
-        connectTimeoutMs: 5000,
-        retryRequestDelayMs: 1000,
-        maxMsgRetryCount: 5,
+        markOnlineOnConnect: false,
+        qrTimeout: 60000,
       })
 
       this.socket = sock
@@ -117,9 +115,18 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
         const errorWithCode = error as {
           output?: { statusCode?: number }
           code?: number
+          data?: { reason?: string; location?: string }
         }
-        errorCode =
-          errorWithCode?.output?.statusCode || errorWithCode?.code || errorCode
+        const statusCode =
+          errorWithCode?.output?.statusCode || errorWithCode?.code
+        errorCode = statusCode || errorCode
+
+        if (statusCode === 405) {
+          this.logger.error(
+            "Erro 405 detectado: Conexão bloqueada pelo WhatsApp. Encerrando aplicação.",
+          )
+          return this.shutdownApp()
+        }
       }
 
       if (errorCode === DisconnectReason.loggedOut) {
@@ -130,7 +137,7 @@ export class WhatsappConnectService implements OnModuleInit, OnModuleDestroy {
         this.retryOrShutdown()
       }
     } else if (connection === "open") {
-      this.logger.log("Conexão com WhatsApp estabelecida com sucesso.")
+      this.logger.log("✅ Conexão com WhatsApp estabelecida com sucesso!")
       this.retryAttempts = 0
     }
 

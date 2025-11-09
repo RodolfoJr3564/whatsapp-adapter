@@ -186,7 +186,7 @@ export class AudioMediaMessageDTO
   }
 }
 
-export class MediaMessageFactory {
+export class MessageFactory {
   static getMessageType(wMessage: WAMessage): MessageTypeEnum {
     return (
       Object.values(MessageTypeEnum).find(type =>
@@ -196,7 +196,7 @@ export class MediaMessageFactory {
   }
 
   static createMessage(wMessage: WAMessage) {
-    const messageType = MediaMessageFactory.getMessageType(wMessage)
+    const messageType = MessageFactory.getMessageType(wMessage)
 
     switch (messageType) {
       case MessageTypeEnum.ExtendedText:

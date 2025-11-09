@@ -6,19 +6,13 @@ import { ConfigService } from "@nestjs/config"
 import { RabbitmqConfig, StorageConfig } from "config/configurations.interface"
 import { WhatsappMessageSenderService } from "./whatsapp-message-sender.service"
 import { WhatsappConnectService } from "./whatsapp-connection.service"
-import {
-  IMediaMessage,
-  MediaMessageDTO,
-  MediaMessageFactory,
-} from "./types/message"
+import { IMediaMessage, MediaMessageDTO, MessageFactory } from "./types/message"
 import {
   UnsupportedMessageTypeError,
   UnsupportedMessageTypeWithoutResponseError,
 } from "./types/custom-errors"
 import { ClientProxy } from "@nestjs/microservices"
-import axios from "axios"
-import * as FormData from "form-data"
-import { MessageTypeEnum } from "./types/message-type.enum"
+
 @Injectable()
 export class WhatsappMessageReceiverService {
   private readonly logger = new Logger(WhatsappMessageReceiverService.name)
@@ -105,7 +99,7 @@ export class WhatsappMessageReceiverService {
   }
 
   private async createMessage(wMessage: WAMessage) {
-    const message = MediaMessageFactory.createMessage(wMessage)
+    const message = MessageFactory.createMessage(wMessage)
 
     if (message instanceof MediaMessageDTO) {
       await this.retrieveAndSaveMedia(wMessage, message)
@@ -128,9 +122,6 @@ export class WhatsappMessageReceiverService {
         logger: this.pinoLogger,
       },
     )
-    if (message.type === MessageTypeEnum.Audio) {
-      message.content = await this.transcribeAudio(buffer, message.mimeType)
-    }
 
     return this.storage.uploadFile(
       message.filePath,
@@ -138,38 +129,5 @@ export class WhatsappMessageReceiverService {
       message.mimeType,
       this.bucketName,
     )
-  }
-
-  private async transcribeAudio(buffer: Buffer, mimeType: string) {
-    const url = "https://api.openai.com/v1/audio/transcriptions"
-
-    try {
-      const formData = new FormData()
-      formData.append("file", buffer, {
-        filename: "audio.mp3", // nome do arquivo
-        contentType: mimeType,
-      })
-      formData.append("model", "whisper-1")
-      formData.append("language", "pt")
-      formData.append(
-        "prompt",
-        "Transcreva o áudio. Você está obtendo um áudio de um cidadão descrevendo um incidente, que pode ser um assalto, acidente, ou outro tipo de ocorrência. Por favor, transcreva o áudio.",
-      )
-
-      const response = await axios.post(url, formData, {
-        headers: {
-          ...formData.getHeaders(),
-          Authorization: `Bearer ${this.openaiAPIKey}`,
-        },
-      })
-      console.log(response)
-      return response.data.text
-    } catch (error: any) {
-      console.error(
-        "Erro na transcrição:",
-        error.response?.data || error.message,
-      )
-      return null
-    }
   }
 }

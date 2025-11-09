@@ -29,7 +29,7 @@ export interface IMessage {
   content: string
   target: WAMessage
   contact: ContactDTO
-  timestamp: number | Long.Long
+  timestamp: number
 }
 
 export interface IMediaMessage extends IMessage {
@@ -42,7 +42,7 @@ export interface ILocationMessage {
   type: MessageTypeEnum
   target: WAMessage
   contact: ContactDTO
-  timestamp: number | Long.Long
+  timestamp: number
   degreesLatitude: number
   degreesLongitude: number
 }
@@ -262,7 +262,7 @@ export class AudioMediaMessageDTO
   }
 }
 
-export class MediaMessageFactory {
+export class MessageFactory {
   static getMessageType(wMessage: WAMessage): MessageTypeEnum {
     return (
       Object.values(MessageTypeEnum).find(type => {
@@ -274,7 +274,7 @@ export class MediaMessageFactory {
   }
 
   static createMessage(wMessage: WAMessage) {
-    const messageType = MediaMessageFactory.getMessageType(wMessage)
+    const messageType = MessageFactory.getMessageType(wMessage)
 
     switch (messageType) {
       case MessageTypeEnum.ExtendedText:
